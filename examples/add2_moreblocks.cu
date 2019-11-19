@@ -9,14 +9,14 @@ void add(int n, float *x, float *y)
 	int index = blockIdx.x* blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
 
-	printf("threadIdx.x = %d threadIdx.y = %d threadIdx.z = %d\
+	/*printf("threadIdx.x = %d threadIdx.y = %d threadIdx.z = %d\
 		blockIdx.x = %d blockIdx.y = %d blockIdx.z = %d\
 		blockDim.x = %d blockDim.y = %d blockDim.z = %d\
-		gridDim.x = %d gridDim.y = %d gridDim.z = %d",\
+		gridDim.x = %d gridDim.y = %d gridDim.z = %d\n",\
 		threadIdx.x, threadIdx.y, threadIdx.z,\
 		blockIdx.x,blockIdx.y,blockIdx.z,\
 		blockDim.x,blockDim.y,blockDim.z,\
-		gridDim.x,gridDim.y,gridDim.z);
+		gridDim.x,gridDim.y,gridDim.z);*/
 	
 	
 	for (int i = index; i < n; i+= stride)
@@ -36,8 +36,8 @@ int main(void)
 	float *x, *y, *d_x, *d_y;
 	x = (float *)malloc(N*sizeof(float));
 	y = (float *)malloc(N*sizeof(float));
-	cudaMalloc(&x, N*sizeof(float));
-	cudaMalloc(&x, N*sizeof(float));
+	cudaMalloc(&d_x, N*sizeof(float));
+	cudaMalloc(&d_y, N*sizeof(float));
 	
 	//initialize x and y arrays on the host
 	for (int i = 0; i < N; i++) {
@@ -53,7 +53,7 @@ int main(void)
   	add<<<numBlocks,blockSize>>>(N, d_x, d_y);
 
 	//Wait for GPU to finish before accessing on host
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 
 	cudaMemcpy(y,d_y, N*sizeof(float), cudaMemcpyDeviceToHost);
 

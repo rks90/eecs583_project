@@ -24,8 +24,8 @@ int main(void)
 	float *x, *y, *d_x, *d_y;
 	x = (float *)malloc(N*sizeof(float));
 	y = (float *)malloc(N*sizeof(float));
-	cudaMalloc(&x, N*sizeof(float));
-	cudaMalloc(&x, N*sizeof(float));
+	cudaMalloc(&d_x, N*sizeof(float));
+	cudaMalloc(&d_y, N*sizeof(float));
 	
 	//initialize x and y arrays on the host
 	for (int i = 0; i < N; i++) {

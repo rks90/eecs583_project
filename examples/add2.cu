@@ -37,7 +37,7 @@ int main(void)
   	add<<<1,1>>>(N, d_x, d_y);
 
 	//Wait for GPU to finish before accessing on host
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 
 	cudaMemcpy(y,d_y, N*sizeof(float), cudaMemcpyDeviceToHost);
 

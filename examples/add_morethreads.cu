@@ -5,17 +5,25 @@
 __global__
 void add(int n, float *x, float *y)
 {
-	for (int i = 0; i < n; i++)
-	y[i] = x[i] + y[i];
+	int index = threadIdx.x;
+	int stride = blockDim.x;
+	for (int i = index; i < n; i+= stride)
+		y[i] = x[i] + y[i];
 }
 
 int main(void)
 {
-	//int N = 1<<20; //1M elements
-	int N = 100; //100 elements
+	int N = 1<<20; //1M elements
+	//int N = 100; //100 elements
+
+	int blockSize = 256;
+	//int numBlocks = (N+blockSize -1) / blocksize;
+	int numBlocks = 1;
 	
 	//Allocate Unified Memory -- accessible from CPU or GPU
 	float *x, *y;
+	x = (float *)malloc(N*sizeof(float));
+	y = (float *)malloc(N*sizeof(float));
 	cudaMallocManaged(&x, N*sizeof(float));
 	cudaMallocManaged(&y, N*sizeof(float));
 	
@@ -24,8 +32,9 @@ int main(void)
 		x[i] = 1.0f;
 		y[i] = 2.0f;
 	}
+
 	// Run kernel on 1M elements on the CPU
-  	add<<<1,1>>>(N, x, y);
+  	add<<<numBlocks,blockSize>>>(N, x, y);
 
 	//Wait for GPU to finish before accessing on host
 	cudaDeviceSynchronize();
