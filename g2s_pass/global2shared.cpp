@@ -9,6 +9,7 @@
 #include "llvm/ADT/APFloat.h"
 #include "llvm/Transforms/Utils/LoopUtils.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/Analysis/LoopPass.h"
 
 #include <regex>
 #include <string>
@@ -38,27 +39,51 @@ namespace {
 				DT->recalculate(F);
 				//Get Loop info
 				LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+				ValueToValueMapTy VMap;
 				//Clone loop
 				for (Loop *L : LI) {
 					BasicBlock* header =L->getHeader();
-					ValueToValueMapTy VMap;
-					SmallVector<BasicBlock *,10> SVB;
+					SmallVector<BasicBlock *,16> SVB;
 					cloneLoopWithPreheader(header, entry, L, VMap, "_clone", &LI, DT, SVB);
 				}
-				//Delete PreHeader
+				//Delete PreHeader and Fixup Ckined Inst uses
 				BasicBlock* to_delete;
 				unordered_map<string, BasicBlock*> bb_map;
+				vector<Value*> dont_map;
 				for (Function::iterator bb = F.begin(), e = F.end(); bb != e; ++bb) {
 					//Remove the preheader
 					regex bb_rstr("entry_clone");
+					regex bb_rstr2(".*_clone");
 					string bb_name = bb->getName();
+					bb_map.insert(make_pair(bb_name, &(*bb)));
 					if (regex_match(bb_name,bb_rstr)) {
 						to_delete = &(*bb);
-					} else {
-						bb_map.insert(make_pair(bb_name, &(*bb)));
+						for (BasicBlock::iterator i = bb->begin(), e = bb->end(); i != e; ++i) {
+							Instruction *Insn = &(*i);
+							Value *Op = dyn_cast<Value>(Insn);
+							//errs() << "Adding Operand to dont_map: " << Op->getName() << "\n";
+							dont_map.push_back(Op);
+						}
+					} else if (regex_match(bb_name,bb_rstr2)) {
+						for (BasicBlock::iterator i = bb->begin(), e = bb->end(); i != e; ++i) {
+							Instruction *Insn = &(*i);
+							for (unsigned index = 0, num_ops = Insn->getNumOperands(); index != num_ops; ++index) {
+								Value *Op = Insn->getOperand(index);
+								ValueToValueMapTy::iterator OpItr = VMap.find(Op);
+								//errs() << "ReMapping Operand: " << Op->getName() << "\n";
+								if (OpItr != VMap.end()) {
+									Value* new_V = OpItr->second;
+									if (find(dont_map.begin(),dont_map.end(),new_V) == dont_map.end()) {
+										Insn->setOperand(index, new_V);
+									}
+								}
+							}
+						}
 					}
 				}
+				dont_map.erase(dont_map.begin());
 				to_delete->eraseFromParent();
+				
 				//Create new for.end basic block
 				BasicBlock* for_end_clone = BasicBlock::Create(F.getContext(), "for.end_clone", &F, bb_map["for.cond"]); 
 				bb_map.insert(make_pair("for.end_clone", for_end_clone));
@@ -67,7 +92,6 @@ namespace {
 				//Fixup cloned loop branches
 				for (Function::iterator bb = F.begin(), e = F.end(); bb != e; ++bb) {
 					regex rstr(".*_clone");
-					//regex rstr(".*_clone|entry");
 					string bb_name = bb->getName();
 					if (regex_match(bb_name,rstr) && (bb_name != "for.end_clone")) {
 						Instruction* I = bb->getTerminator();
@@ -77,14 +101,15 @@ namespace {
 							string succ_bb_name = succ_bb->getName();
 							string new_succ_bb_name = succ_bb_name;
 							new_succ_bb_name.append("_clone");
-							errs() << "Changing Successor of " << bb_name << " from " << succ_bb_name << " to " << new_succ_bb_name << "\n";
-							if (bb_map.find(new_succ_bb_name) != bb_map.end()) {
-								BI->setSuccessor(ii,bb_map[new_succ_bb_name]);
+							if (!(regex_match(succ_bb_name,rstr))) {
+								errs() << "Changing Successor of " << bb_name << " from " << succ_bb_name << " to " << new_succ_bb_name << "\n";
+								if (bb_map.find(new_succ_bb_name) != bb_map.end()) {
+									BI->setSuccessor(ii,bb_map[new_succ_bb_name]);
+								}
 							}
 						}
 					}
 				}
-				
 				
 				/*
 				//Iterate over BBs
