@@ -8,14 +8,14 @@ using namespace std;
 const int TILE_DIM = 32;
 const int BLOCK_ROWS = 8;
 
-__global__ void copy(float *odata, const float *idata)
+__global__ void copy(int *odata, const int *idata)
 {
   int x = blockIdx.x * TILE_DIM + threadIdx.x;
   int y = blockIdx.y * TILE_DIM + threadIdx.y;
   int width = gridDim.x * TILE_DIM;
 
   for (int j = 0; j < TILE_DIM; j+= BLOCK_ROWS)
-    odata[(y+j)*width + x] = idata[(y+j)*width + x];
+    odata[(y+j) + x*width] = idata[(y+j) + x*width];
 }
 
 int main(void)
@@ -25,9 +25,9 @@ int main(void)
 	int N = 100*32; 
 	
 	//Allocate Unified Memory -- accessible from CPU or GPU
-	float *x, *y;
-	cudaMallocManaged(&x, N*N*sizeof(float));
-	cudaMallocManaged(&y, N*N*sizeof(float));
+	int *x, *y;
+	cudaMallocManaged(&x, N*N*sizeof(int));
+	cudaMallocManaged(&y, N*N*sizeof(int));
 	
 	//initialize x
 	for (int i = 0; i < N; i++) {

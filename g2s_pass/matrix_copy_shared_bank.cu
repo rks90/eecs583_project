@@ -13,13 +13,13 @@ __global__ void copy(int *odata, const int *idata)
   int x = blockIdx.x * TILE_DIM + threadIdx.x;
   int y = blockIdx.y * TILE_DIM + threadIdx.y;
   int width = gridDim.x * TILE_DIM;
-  __shared__ int tile[TILE_DIM * TILE_DIM];
+  __shared__ int tile[(TILE_DIM * TILE_DIM) + 1];
   for (int j = 0; j < TILE_DIM; j += BLOCK_ROWS)
-       tile[(threadIdx.y+j) + threadIdx.x*TILE_DIM] = idata[(y+j) + x*width];
+       tile[(threadIdx.y+j)*TILE_DIM + threadIdx.x] = idata[(y+j)*width + x];
   __syncthreads();
 
   for (int j = 0; j < TILE_DIM; j+= BLOCK_ROWS)
-    odata[(y+j) + x*width] = tile[(threadIdx.y+j) + threadIdx.x*TILE_DIM];
+    odata[(y+j)*width + x] = tile[(threadIdx.y+j)*TILE_DIM + threadIdx.x];
 }
 
 int main(void)
